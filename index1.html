@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kuis Online Terhubung Google Sheets</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: url('https://mariterbang.io/download/ZWrLA4oV.jpg') no-repeat center center fixed;
+      background-size: cover;
+      position: relative;
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: -1;
+    }
+    .quiz-container {
+      background: transparent;
+      backdrop-filter: blur(8px);
+      padding: 30px 20px 40px;
+      border-radius: 15px;
+      max-width: 600px;
+      margin: 50px auto;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      text-align: center;
+      color: white;
+    }
+    .logo {
+      width: 120px;
+      margin: 0 auto 15px;
+    }
+    .logo img {
+      width: 100%;
+      height: auto;
+      border-radius: 15px;
+    }
+    h2 {
+      margin-bottom: 25px;
+      color: #fff;
+      font-weight: 700;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+    .question {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .question h3 {
+      margin: 0 0 10px;
+      color: #fff;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #bbb;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .result {
+      font-weight: bold;
+      margin-top: 25px;
+      color: #00ff88;
+    }
+    button {
+      padding: 12px 30px;
+      border: none;
+      background: #28a745;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #218838;
+    }
+    .hidden {
+      display: none;
+    }
+    small {
+      color: #ddd;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <div class="logo">
+      <img src="https://mariterbang.io/download/R38fVG1X.png" alt="Logo Kuis" />
+    </div>
+    <h2>Kuis Isian Singkat</h2>
+    <form id="quizForm">
+      <div class="question">
+        <label for="inisial"><h3>Masukkan Inisial Anda (a-j):</h3></label>
+        <input type="text" name="inisial" id="inisial" maxlength="1" required pattern="[a-j]" title="Masukkan huruf dari a sampai j" autocomplete="off" />
+        <small>Contoh: a, b, c, d ... j</small>
+      </div>
+      <div id="soal-container"></div>
+      <button type="submit" class="hidden" id="btnSubmit">Kirim Jawaban</button>
+    </form>
+    <div class="result" id="result" role="alert">Jawaban Anda akan dikoreksi oleh guru.</div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyvE0UGzv1NqhHBpzAixKkpkak95gAy1JAYM99xOIVA9vdCAmGtYVIwTErPua5bJVNnLA/exec";
+    let soalKuis = {};
+
+    const inisialInput = document.getElementById('inisial');
+    const soalContainer = document.getElementById('soal-container');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const resultDiv = document.getElementById('result');
+
+    // Ambil soal dari Google Sheets
+    async function loadSoal() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        soalKuis = data;
+      } catch (err) {
+        console.error("Gagal ambil soal", err);
+      }
+    }
+
+    function renderSoal(inisial) {
+      soalContainer.innerHTML = '';
+      resultDiv.textContent = 'Jawaban Anda akan dikoreksi oleh guru.';
+      if (soalKuis[inisial]) {
+        const div = document.createElement('div');
+        div.classList.add('question');
+        div.innerHTML = `
+          <h3>1. ${soalKuis[inisial]}</h3>
+          <input type="text" name="jawaban" required autocomplete="off" />
+        `;
+        soalContainer.appendChild(div);
+        btnSubmit.classList.remove('hidden');
+      } else {
+        soalContainer.innerHTML = `<p style="color: #ffaaaa;">Inisial tidak dikenali. Silakan masukkan huruf a-j.</p>`;
+        btnSubmit.classList.add('hidden');
+      }
+    }
+
+    inisialInput.addEventListener('input', () => {
+      const kode = inisialInput.value.trim().toLowerCase();
+      renderSoal(kode);
+    });
+
+    document.getElementById('quizForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const inisial = formData.get('inisial').toLowerCase();
+      const jawaban = formData.get('jawaban');
+
+      try {
+        await fetch(API_URL, {
+  method: 'POST',
+  body: JSON.stringify({ inisial, jawaban }),
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+.then(response => response.text())
+.then(text => {
+  console.log("Server response:", text);
+  resultDiv.textContent = '✅ Jawaban Anda berhasil dikirim!';
+})
+.catch(err => {
+  console.error("Fetch error:", err);
+  resultDiv.textContent = '❌ Gagal mengirim jawaban.';
+});
+
+      e.target.reset();
+      soalContainer.innerHTML = '';
+      btnSubmit.classList.add('hidden');
+    });
+
+    // Inisialisasi saat halaman pertama kali dibuka
+    loadSoal();
+  </script>
+</body>
+</html>
